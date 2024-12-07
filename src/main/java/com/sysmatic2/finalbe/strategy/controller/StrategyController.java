@@ -290,8 +290,8 @@ public class StrategyController {
         return ResponseEntity.status(HttpStatus.OK).body(responseMap);
     }
 
-    // 10. 전략 수기 데이터 등록
-    @Operation(summary = "전략 수기 데이터 등록", description = "날짜, 입출금, 일손익을 최대 5행까지 입력받아 전략 데이터를 등록합니다.")
+    // 10. 일간 분석 데이터 등록
+    @Operation(summary = "일간 분석 데이터 등록", description = "날짜, 입출금, 일손익을 최대 5행까지 입력받아 전략 데이터를 등록합니다.")
     @PostMapping(value = "/{id}/daily-data", produces = "application/json")
     public ResponseEntity<Map<String, Object>> registerManualDailyData(
             @PathVariable("id") Long strategyId,
@@ -308,29 +308,29 @@ public class StrategyController {
 
         // 트레이더면 작성자 판별
         if(isTrader && !strategyEntity.getWriterId().equals(memberId)) {
-            throw new AccessDeniedException("수기 데이터 등록 권한이 없습니다.");
+            throw new AccessDeniedException("일간 분석 데이터 등록 권한이 없습니다.");
         }
 
         // 1. 데이터 유효성 검사
-        // 수기 데이터가 비어있는지 확인
+        // 일간 분석 데이터가 비어있는지 확인
         if (payload.getPayload() == null || payload.getPayload().isEmpty()) {
-            // 수기 데이터가 없으면 BAD_REQUEST 상태로 오류 응답
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "수기 데이터는 최소 1개 이상 필요합니다.");
+            // 일간 분석 데이터가 없으면 BAD_REQUEST 상태로 오류 응답
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "일간 분석 데이터는 최소 1개 이상 필요합니다.");
         }
-        // 수기 데이터가 5개를 초과하는지 확인
+        // 일간 분석 데이터가 5개를 초과하는지 확인
         if (payload.getPayload().size() > 5) {
             // 5개를 초과하면 BAD_REQUEST 상태로 오류 응답
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "수기 데이터는 최대 5개까지 등록 가능합니다.");
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "일간 분석 데이터는 최대 5개까지 등록 가능합니다.");
         }
 
-        // 2. 수기 데이터를 저장
-        // 수기 데이터를 하나씩 처리하여 저장
+        // 2. 일간 분석 데이터를 저장
+        // 일간 분석 데이터를 하나씩 처리하여 저장
         payload.getPayload().forEach(entry -> {
-            /// 각 데이터 항목을 기반으로 수기 데이터를 처리하는 서비스 메서드 호출
+            /// 각 데이터 항목을 기반으로 일간 분석 데이터를 처리하는 서비스 메서드 호출
             dailyStatisticsService.registerDailyStatistics(
                     strategyId,  // 전략 ID를 서비스 메서드에 전달
                     DailyStatisticsReqDto.builder()
-                            .date(entry.getDate())  // 수기 데이터의 날짜
+                            .date(entry.getDate())  // 일간 분석 데이터의 날짜
                             .dailyProfitLoss(entry.getDailyProfitLoss())  // 일손익
                             .depWdPrice(entry.getDepWdPrice())  // 입출금 금액
                             .build()
@@ -345,17 +345,17 @@ public class StrategyController {
         return ResponseEntity.status(HttpStatus.CREATED).body(responseMap);
     }
 
-    //11. 전략 수기 데이터 수정
+    //11. 전략 일간 분석 데이터 수정
 
     /**
-     * 전략 수기 데이터 수정 API
+     * 일간 분석 데이터 수정 API
      *
      * @param strategyId  수정할 전략 ID
      * @param dailyDataId 수정할 데이터 ID
      * @param reqDto      수정 요청 데이터 (날짜, 입출금, 일손익)
      * @return 성공 메시지
      */
-    @Operation(summary = "전략 수기 데이터 수정", description = "수정된 날짜 이후 데이터까지 재등록하여 지표를 갱신합니다.")
+    @Operation(summary = "전략 일간 분석 데이터 수정", description = "수정된 날짜 이후 데이터까지 재등록하여 지표를 갱신합니다.")
     @PutMapping("/{strategyId}/daily-data/{dailyDataId}")
     public ResponseEntity<Map<String, String>> updateDailyData(
             @PathVariable Long strategyId,
@@ -377,7 +377,7 @@ public class StrategyController {
     }
 
 
-    //13. 전략 수기 데이터 삭제
+    //13. 일간 분석 데이터 삭제
     /**
      * 특정 전략의 일간 분석 데이터를 삭제하고 필요한 데이터를 재계산합니다.
      *
@@ -413,14 +413,53 @@ public class StrategyController {
         ));
     }
 
-    //14. 일간 분석 데이터 목록 조회
+    //14. 일간 분석 데이터 전체 삭제
+    /**
+     * 특정 전략의 모든 일간 분석 데이터를 삭제하고 월간 분석 데이터를 삭제하는 API.
+     *
+     * - 이 API는 특정 전략 ID와 연결된 모든 일간 분석 데이터를 삭제합니다.
+     * - 일간 분석 데이터 삭제 후, 연관된 월간 분석 데이터도 삭제합니다.
+     * - 관리자가 직접 호출하거나, 작성된 전략에 대한 요청이 있을 때 사용됩니다.
+     *
+     * @param strategyId 삭제할 일간 분석 데이터가 포함된 전략의 ID
+     * @param userDetails 요청한 사용자의 인증 정보
+     * @return 삭제 결과 메시지
+     */
+    @Operation(
+            summary = "전략의 모든 일간 분석 데이터 삭제",
+            description = "특정 전략 ID에 대한 모든 일간 분석 데이터를 삭제하고, 월간 분석 데이터도 함께 삭제합니다."
+    )
+    @DeleteMapping("/{strategyId}/daily-analyses/all")
+    public ResponseEntity<Map<String, String>> deleteAllDailyAnalyses(
+            @PathVariable Long strategyId,
+            @AuthenticationPrincipal CustomUserDetails userDetails) {
+
+        // 접속자 정보 확인
+        String memberId = userDetails.getMemberId();
+        Boolean isAdmin = userDetails.getAuthorities().stream()
+                .anyMatch(authority -> authority.getAuthority().equals("ROLE_ADMIN"));
+        Boolean isTrader = userDetails.getAuthorities().stream()
+                .anyMatch(authority -> authority.getAuthority().equals("ROLE_TRADER"));
+
+        // 서비스 호출: 일간 분석 데이터 및 월간 분석 데이터 삭제
+        dailyStatisticsService.deleteAllDailyAndMonthlyAnalyses(strategyId, memberId, isTrader, isAdmin);
+
+        // 성공 메시지 반환
+        Map<String, String> response = Map.of(
+                "msg", "ALL_DAILY_ANALYSES_DELETED_SUCCESSFULLY"
+        );
+
+        return ResponseEntity.status(HttpStatus.OK).body(response);
+    }
+
+    //15. 일간 분석 데이터 목록 조회
     //isPosted = N or isApproved = N인 경우 작성자와 관리자만 조회할 수 있다.
     /**
      * 특정 전략의 일간 분석 데이터를 최신일자순으로 페이징하여 반환합니다.
      *
      * @param strategyId 전략 ID.
      * @param page       페이지 번호 (기본값: 0).
-     * @param pageSize   페이지 크기 (기본값: 5).
+     * @param pageSize   페이지 크기 (기본값: 8).
      * @return 페이징된 일간 통계 데이터를 포함한 Map.
      */
     @Operation(
@@ -431,7 +470,7 @@ public class StrategyController {
     public ResponseEntity<Map<String, Object>> getDailyAnalyses(
             @PathVariable Long strategyId,
             @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "5") int pageSize) {
+            @RequestParam(defaultValue = "8") int pageSize) {
 
         // 서비스에서 페이징된 결과를 가져옴
         Page<DailyStatisticsResponseDto> result = dailyStatisticsService.getDailyStatisticsByStrategy(strategyId, page, pageSize);
@@ -443,7 +482,7 @@ public class StrategyController {
         return ResponseEntity.ok(response);
     }
 
-    //15. 전략 통계
+    //16. 전략 통계
     //isPosted = N or isApproved = N인 경우 작성자와 관리자만 조회할 수 있다.
     /**
      * 전략 통계를 반환합니다.
@@ -470,9 +509,9 @@ public class StrategyController {
         return ResponseEntity.ok(response); // HTTP 200 상태로 응답 반환
     }
 
-    //16. 필터링
+    //17. 필터링
     /**
-     * 16-1. 전략 상세 필터링
+     * 17-1. 전략 상세 필터링
      *
      * @param investmentAssetClassesList   투자자산 분류 id 목록(1,2,3)
      * @param strategyOperationStatusList  전략 운용 상태 코드 목록
@@ -547,7 +586,7 @@ public class StrategyController {
 
 
     /**
-     * 16-2. 전략 키워드 검색.
+     * 17-2. 전략 키워드 검색.
      *
      * @param keyword                              검색 키워드
      * @return ResponseEntity<Map<String, Object>> 검색 결과 전략 리스트
@@ -566,13 +605,13 @@ public class StrategyController {
         return ResponseEntity.status(HttpStatus.OK).body(responseData);
     }
 
-    // 17. 월간 분석 목록
+    // 18. 월간 분석 목록
     /**
      * 전략의 월간 분석 목록을 페이징 처리하여 반환하는 API.
      *
      * @param strategyId 전략 ID
      * @param page       페이지 번호 (기본값: 0)
-     * @param pageSize   페이지 크기 (기본값: 5)
+     * @param pageSize   페이지 크기 (기본값: 8)
      * @return 월간 분석 데이터가 담긴 페이징 응답
      */
     @Operation(
@@ -583,13 +622,13 @@ public class StrategyController {
     public Map<String, Object> getMonthlyAnalysis(
             @PathVariable Long strategyId,
             @RequestParam(defaultValue = "0") @Min(0) int page,
-            @RequestParam(defaultValue = "5") @Min(1) int pageSize) {
+            @RequestParam(defaultValue = "8") @Min(1) int pageSize) {
 
         // 월간 분석 서비스 호출 및 결과 반환
         return monthlyStatisticsService.getMonthlyAnalysis(strategyId, page, pageSize);
     }
 
-    // 18. 전략 상세 차트 조회 API
+    // 19. 전략 상세 차트 조회 API
     /**
      * 전략 상세 차트 데이터를 조회하는 API
      *
@@ -614,7 +653,7 @@ public class StrategyController {
         return ResponseEntity.ok(responseDto);
     }
 
-    // 19. SM Score 기반 상위 5개 전략 리스트
+    // 20. SM Score 기반 상위 5개 전략 리스트
     @Operation(
             summary = "SM SCORE 상위 5개 전략 조회",
             description = "SM SCORE 기준 상위 5개의 전략 리스트를 반환합니다. 응답에는 전략 ID, 전략명, 작성자 프로필, 작성자 닉네임, 전일대비, 누적 수익률의 정보가 포함됩니다."

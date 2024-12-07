@@ -1,6 +1,5 @@
 package com.sysmatic2.finalbe.strategy.dto;
 
-import com.sysmatic2.finalbe.strategy.dto.DailyStatisticsReqDto;
 import jakarta.validation.*;
 import jakarta.validation.constraints.Size;
 import lombok.*;

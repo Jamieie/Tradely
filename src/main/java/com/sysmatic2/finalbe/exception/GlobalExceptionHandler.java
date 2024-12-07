@@ -2,7 +2,6 @@ package com.sysmatic2.finalbe.exception;
 
 import com.sysmatic2.finalbe.common.ResponseUtils;
 import jakarta.validation.ConstraintViolationException;
-import org.apache.tomcat.websocket.AuthenticationException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -22,7 +21,7 @@ import org.springframework.web.method.annotation.MethodArgumentTypeMismatchExcep
 import org.springframework.web.multipart.MaxUploadSizeExceededException;
 import org.springframework.web.server.ResponseStatusException;
 
-import java.nio.file.AccessDeniedException;
+import java.time.Instant;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.NoSuchElementException;
@@ -109,11 +108,29 @@ public class GlobalExceptionHandler {
     // 400: 잘못된 데이터 타입
     @ExceptionHandler(HttpMessageNotReadableException.class)
     public ResponseEntity<Object> handleHttpMessageNotReadableException(HttpMessageNotReadableException e) {
-        logger.warn("Invalid data format: {}", e.getMessage());
+        Throwable rootCause = e.getRootCause(); // 원래 발생한 예외를 추출
+
+        // 루트 예외가 InvalidDateException인 경우 처리
+        if (rootCause instanceof InvalidDateException) {
+            return ResponseUtils.buildErrorResponse(
+                    "INVALID_DATE",
+                    rootCause.getClass().getSimpleName(),
+                    rootCause.getMessage(),
+                    HttpStatus.BAD_REQUEST
+            );
+        }
+
+        // 예외 메시지를 기본적으로는 "JSON parse error" 대신 루트 예외의 메시지를 사용
+        String errorMessage = (rootCause != null && rootCause.getMessage() != null)
+                ? rootCause.getMessage()
+                : "잘못된 데이터 타입입니다.";
+
+        logger.warn("Invalid data format: {}", errorMessage);
+
         return ResponseUtils.buildErrorResponse(
                 "HTTP_MESSAGE_NOT_READABLE",
                 e.getClass().getSimpleName(),
-                "잘못된 데이터 타입입니다.",
+                errorMessage, // 추출한 루트 예외 메시지
                 HttpStatus.BAD_REQUEST
         );
     }

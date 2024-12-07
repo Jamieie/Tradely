@@ -3,7 +3,7 @@ package com.sysmatic2.finalbe.strategy.repository;
 import com.sysmatic2.finalbe.strategy.entity.MonthlyStatisticsEntity;
 
 import java.math.BigDecimal;
-import java.time.YearMonth;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 
@@ -44,7 +44,7 @@ public interface MonthlyStatisticsRepository extends JpaRepository<MonthlyStatis
       AND m.analysisMonth = :analysisMonth
 """)
   Optional<MonthlyStatisticsEntity> findByStrategyIdAndAnalysisMonth(@Param("strategyId") Long strategyId,
-                                                                     @Param("analysisMonth") YearMonth analysisMonth);
+                                                                     @Param("analysisMonth") String analysisMonth);
 
   /**
    * 특정 전략의 모든 월간 손익 데이터를 조회하는 메서드.
@@ -72,10 +72,10 @@ public interface MonthlyStatisticsRepository extends JpaRepository<MonthlyStatis
   Page<MonthlyStatisticsEntity> findByStrategyEntityStrategyIdOrderByAnalysisMonthDesc(Long strategyId, Pageable pageable);
 
   // strategy id로 월간통계 데이터 모두 삭제
-  void deleteByStrategyEntity(StrategyEntity strategyEntity);
+  void deleteAllByStrategyEntity(StrategyEntity strategyEntity);
 
-  // 특정 전략 ID에 해당하는 월간 통계 데이터를 모두 삭제
+  // 해당 전략의 기준일 이후 월간데이터 전부 삭제
   @Modifying
-  @Query("DELETE FROM MonthlyStatisticsEntity m WHERE m.strategyEntity.strategyId = :strategyId")
-  void deleteByStrategyId(@Param("strategyId") Long strategyId);
+  @Query("DELETE FROM MonthlyStatisticsEntity ms WHERE ms.strategyEntity.strategyId = :strategyId AND ms.analysisMonth >= :analysisMonth")
+  void deleteFromMonth(@Param("strategyId") Long strategyId, @Param("analysisMonth") String analysisMonth);
 }
