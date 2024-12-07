@@ -28,7 +28,7 @@ public class MonthlyStatisticsEntity extends Auditable {
     private Long monthlyStatisticsId; // 전략 월간 통계 ID
 
     @Column(name = "analysis_month", nullable = false)
-    private YearMonth analysisMonth; // 년월 - @converter필요
+    private String analysisMonth; // 년월
 
     @Column(name = "monthly_average_principal", nullable = false, precision = 19, scale = 4)
     private BigDecimal monthlyAvgPrincipal; //월평균 원금 - 해당 월의 원금들의 평균값

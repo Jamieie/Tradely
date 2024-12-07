@@ -56,8 +56,6 @@ public class ExcelUploadController {
       // 엑셀 파일에서 데이터를 추출하고 저장 (엔티티 리스트 반환)
       List<DailyStatisticsEntity> entities = excelUploadService.extractAndSaveData(file, strategyId, memberId, isTrader);
 
-
-
       // 엔티티 리스트를 DTO 리스트로 변환
       List<DailyStatisticsReqDto> dtos = entities.stream()
               .map(entity -> DailyStatisticsReqDto.builder()
