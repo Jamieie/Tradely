@@ -171,7 +171,7 @@ class ExcelGeneratorServiceTest {
     MonthlyStatisticsEntity monthly1 = new MonthlyStatisticsEntity();
     monthly1.setMonthlyStatisticsId(1L);
     monthly1.setStrategyEntity(strategy);
-    monthly1.setAnalysisMonth(YearMonth.of(2024, 4));
+    monthly1.setAnalysisMonth("2024-04");
     monthly1.setMonthlyAvgPrincipal(new BigDecimal("15000.00"));
     monthly1.setMonthlyDepWdAmount(new BigDecimal("3000.00"));
     monthly1.setMonthlyProfitLoss(new BigDecimal("400.00"));

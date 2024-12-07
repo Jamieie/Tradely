@@ -20,6 +20,7 @@ import org.springframework.web.server.ResponseStatusException;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.function.Consumer;
 import java.util.function.Function;
@@ -86,7 +87,7 @@ public class DailyStatisticsService {
         response.put("currentDrawdownRate", latestStatistics.getCurrentDrawdownRate()); // 현재 자본 인하율
         response.put("maxDrawdownAmount", latestStatistics.getMaxDrawdownAmount()); // 최대 자본 인하 금액
         response.put("maxDrawdownRate", latestStatistics.getMaxDrawdownRate()); // 최대 자본 인하율
-        response.put("unrealizedProfitLoss", latestStatistics.getUnrealizedProfitLoss()); // 평가 손익
+        response.put("averageProfitLoss", latestStatistics.getAverageProfitLoss()); // 평균 손익금
         response.put("averageProfitLossRate", latestStatistics.getAverageProfitLossRate()); // 평균 손익률
         response.put("maxDailyProfit", latestStatistics.getMaxDailyProfit()); // 최대 일 수익 금액
         response.put("maxDailyProfitRate", latestStatistics.getMaxDailyProfitRate()); // 최대 일 수익률
@@ -173,6 +174,10 @@ public class DailyStatisticsService {
             // 등록한 데이터부터 이후 데이터를 삭제
             dsp.deleteFromDate(strategyId, afterState.getDate());
 
+            // 등록한 데이터가 포함된 월부터 이후 월간 데이터 삭제
+            String startMonth = afterState.getDate().format(DateTimeFormatter.ofPattern("yyyy-MM"));
+            monthlyStatisticsService.deleteMonthlyDataFromMonth(strategyId, startMonth);
+
             // 이후 데이터를 재계산 및 저장
             recalculateAndSave(affectedRows, newEntry, strategyId);
         }
@@ -228,6 +233,12 @@ public class DailyStatisticsService {
         targetData.setDepWdPrice(reqDto.getDepWdPrice());
         dsp.save(targetData);
 
+        // 월간 데이터 삭제 로직 추가
+        if (afterData != null) {
+            String startMonth = afterData.getDate().format(DateTimeFormatter.ofPattern("yyyy-MM"));
+            monthlyStatisticsService.deleteMonthlyDataFromMonth(strategyId, startMonth);
+        }
+
         // 가장 뒤 데이터를 더 늦은 일자로 수정한 경우 해당 날짜 데이터만 수정하고 리턴
         if(afterData == null) return;
 
@@ -255,7 +266,7 @@ public class DailyStatisticsService {
     }
 
     /**
-     * 일간 분석 데이터를 삭제하고 이후 데이터를 재계산합니다.
+     * 일간 분석 데이터를 삭제하고 이후 데이터를 재계산합니다.(월간 삭제 후 재계산 포함)
      *
      * @param strategyId        삭제 대상이 포함된 전략의 ID
      * @param dailyStatisticsIds 삭제할 데이터 ID 리스트
@@ -310,18 +321,24 @@ public class DailyStatisticsService {
                     .orElse(null);
         }
 
-        // 7. nextDate가 없는 경우 바로 리턴
+        // 7. 월간 데이터 삭제 로직 추가
+        if (nextDate != null) {
+            String startMonth = nextDate.format(DateTimeFormatter.ofPattern("yyyy-MM"));
+            monthlyStatisticsService.deleteMonthlyDataFromMonth(strategyId, startMonth);
+        }
+
+        // 8. nextDate가 없는 경우 바로 리턴
         if (nextDate == null) {
             return;
         }
 
-        // 7. 기준일(포함) 이후 데이터를 조회
+        // 9. 기준일(포함) 이후 데이터를 조회
         List<DailyStatisticsEntity> entitiesAfterDeletion = dsp.findAllAfterDate(strategyId, nextDate);
 
-        // 8. 기준일(포함) 이후 데이터 삭제
+        // 10. 기준일(포함) 이후 데이터 삭제
         dsp.deleteFromDate(strategyId, nextDate);
 
-        // 9. 기준일(포함) 이후 데이터를 순회하며 재계산
+        // 11. 기준일(포함) 이후 데이터를 순회하며 재계산
         if (!entitiesAfterDeletion.isEmpty()) {
             recalculateAndSave(entitiesAfterDeletion, previousState.orElse(null), strategyId);
         }
@@ -867,11 +884,43 @@ public class DailyStatisticsService {
     }
 
     /**
+     * 특정 전략의 모든 일간 분석 데이터 및 월간 분석 데이터를 삭제하는 메서드.
+     *
+     * - 주어진 전략 ID와 연관된 모든 일간 분석 데이터를 삭제합니다.
+     * - 삭제 후, 월간 분석 데이터도 전부 삭제합니다.
+     * - 작성자와 관리자 모두 삭제할 수 있습니다.
+     *
+     * @param strategyId 전략 ID
+     * @param memberId 요청한 사용자의 ID
+     * @param isTrader 요청한 사용자가 트레이더인지 여부
+     * @param isAdmin 요청한 사용자가 관리자인지 여부
+     */
+    @Transactional
+    public void deleteAllDailyAndMonthlyAnalyses(Long strategyId, String memberId, Boolean isTrader, Boolean isAdmin) {
+        // 1. 전략 엔티티 가져오기
+        StrategyEntity strategy = strategyRepository.findById(strategyId)
+                .orElseThrow(() -> new NoSuchElementException("해당 전략을 찾을 수 없습니다: " + strategyId));
+
+        // 2. 권한 검증
+        if (!isAdmin) { // 관리자는 작성자 검증 없이 삭제 가능
+            if (isTrader && !strategy.getWriterId().equals(memberId)) {
+                throw new AccessDeniedException("해당 전략에 대한 데이터 삭제 권한이 없습니다.");
+            }
+        }
+
+        // 4. 월간 분석 데이터 전체 삭제
+        monthlyStatisticsService.deleteAllMonthlyStatisticsByStrategy(strategy);
+
+        // 3. 일간 분석 데이터 전체 삭제
+        dsp.deleteAllByStrategyId(strategyId);
+    }
+
+    /**
      * 전략에 해당하는 일간통계를 삭제하는 메서드 (트레이더 탈퇴로 인한 전략 삭제 시)
      *
      * @param strategy
      */
-    public void deleteDailyStatisticsByStrategy(StrategyEntity strategy) {
+    public void deleteAllDailyStatisticsByStrategy(StrategyEntity strategy) {
         dsp.deleteAllByStrategyEntity(strategy);
     }
 }

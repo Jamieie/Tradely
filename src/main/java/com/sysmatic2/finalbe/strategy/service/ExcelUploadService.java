@@ -1,7 +1,5 @@
 package com.sysmatic2.finalbe.strategy.service;
 
-import com.fasterxml.jackson.core.JsonFactory;
-import com.fasterxml.jackson.core.JsonParser;
 import com.sysmatic2.finalbe.strategy.common.LocalDateDeserializer;
 import com.sysmatic2.finalbe.strategy.dto.DailyStatisticsReqDto;
 import com.sysmatic2.finalbe.exception.ExcelValidationException;
@@ -18,6 +16,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 import jakarta.validation.ConstraintViolation;
 import jakarta.validation.Validator;
+
 import java.io.InputStream;
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -122,8 +121,6 @@ public class ExcelUploadService {
         throw new ExcelValidationException("엑셀 파일에 데이터가 존재하지 않습니다.");
       }
 
-    } catch (ExcelValidationException e) {
-      throw e;
     } catch (Exception e) {
       throw new ExcelValidationException("엑셀 데이터 추출 중 오류가 발생했습니다: " + e.getMessage(), e);
     }
@@ -139,31 +136,22 @@ public class ExcelUploadService {
    * @return DailyStatisticsReqDto 객체
    */
   private DailyStatisticsReqDto parseRowToDto(Row row, int rowNumber) {
-    try {
       Cell dateCell = row.getCell(0);
       Cell depWdPriceCell = row.getCell(1);
       Cell dailyProfitLossCell = row.getCell(2);
 
-      LocalDate date = null;
-      if (dateCell != null) {
-        if (dateCell.getCellType() == CellType.NUMERIC && DateUtil.isCellDateFormatted(dateCell)) {
-          date = dateCell.getLocalDateTimeCellValue().toLocalDate();
-        } else if (dateCell.getCellType() == CellType.STRING) {
-          try {
-            // JsonParser 생성 (JSON 형식으로 감싸기)
-            String dateString = dateCell.getStringCellValue();
-            String jsonDate = "\"" + dateString + "\""; // JSON 문자열로 감싸기
-            JsonParser parser = new JsonFactory().createParser(jsonDate);
-            parser.nextToken(); // 첫 번째 토큰으로 이동
+      if (dateCell == null) {
+        throw new ExcelValidationException("행 " + rowNumber + "의 날짜가 비어 있습니다.");
+      }
 
-            // LocalDateDeserializer를 사용해 날짜 파싱
-            date = localDateDeserializer.deserialize(parser, null); // Context는 null로 전달
-          } catch (Exception e) {
-            throw new ExcelValidationException("행 " + rowNumber + "의 날짜 형식이 유효하지 않거나 공휴일/주말입니다.", e);
-          }
-        } else {
-          throw new ExcelValidationException("행 " + rowNumber + "의 날짜 형식이 유효하지 않습니다.");
-        }
+      LocalDate date;
+      if (dateCell.getCellType() == CellType.NUMERIC && DateUtil.isCellDateFormatted(dateCell)) {
+        date = dateCell.getLocalDateTimeCellValue().toLocalDate();
+        localDateDeserializer.deserialize(date.toString()); // 숫자 날짜에 대한 검증
+      } else if (dateCell.getCellType() == CellType.STRING) {
+        date = localDateDeserializer.deserialize(dateCell.getStringCellValue()); // 문자열 파싱 및 검증
+      } else {
+        throw new ExcelValidationException("행 " + rowNumber + "의 날짜 형식이 유효하지 않습니다.");
       }
 
       BigDecimal depWdPrice = null;
@@ -189,11 +177,6 @@ public class ExcelUploadService {
               .depWdPrice(depWdPrice)
               .dailyProfitLoss(dailyProfitLoss)
               .build();
-    } catch (ExcelValidationException e) {
-      throw e;
-    } catch (Exception e) {
-      throw new ExcelValidationException("행 " + rowNumber + "을(를) 파싱하는 중 오류가 발생했습니다.", e);
-    }
   }
 
   /**
@@ -213,4 +196,5 @@ public class ExcelUploadService {
       throw new ExcelValidationException(sb.toString());
     }
   }
+
 }
