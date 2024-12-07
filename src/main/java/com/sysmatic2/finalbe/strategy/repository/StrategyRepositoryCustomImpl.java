@@ -2,12 +2,12 @@ package com.sysmatic2.finalbe.strategy.repository;
 
 import com.querydsl.core.BooleanBuilder;
 import com.querydsl.core.types.Expression;
-import com.querydsl.core.types.dsl.Expressions;
+
 import com.querydsl.core.types.dsl.PathBuilder;
 import com.querydsl.jpa.JPQLQuery;
 import com.querydsl.jpa.impl.JPAQueryFactory;
 import com.sysmatic2.finalbe.exception.InvalidFieldNameException;
-import com.sysmatic2.finalbe.strategy.dto.DailyStatisticsChartResponseDto;
+
 import com.sysmatic2.finalbe.strategy.dto.SearchOptionsDto;
 import com.sysmatic2.finalbe.strategy.entity.QDailyStatisticsEntity;
 import com.sysmatic2.finalbe.strategy.entity.QStrategyEntity;
