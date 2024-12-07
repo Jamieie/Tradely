@@ -738,11 +738,11 @@ public class StrategyService {
 
         //10. 전략 월간분석 데이터 삭제
         // MonthlyStatisticsEntity에서 해당 전략의 데이터를 모두 삭제
-        monthlyStatisticsRepository.deleteByStrategyId(strategyEntity.getStrategyId());
+        monthlyStatisticsRepository.deleteAllByStrategyEntity(strategyEntity);
 
         //11. 전략 일간분석 데이터 삭제
         // DailyStatisticsEntity에서 해당 전략의 데이터를 모두 삭제
-        dailyStatisticsRepository.deleteByStrategyId(strategyEntity.getStrategyId());
+        dailyStatisticsRepository.deleteAllByStrategyId(strategyEntity.getStrategyId());
 
         //12. 관심전략 삭제
         followingStrategyService.deleteFollowingStrategiesByStrategy(strategyEntity);
@@ -778,8 +778,8 @@ public class StrategyService {
             }
 
             strategyApprovalRequestsService.deleteStrategyApprovalRequestsByStrategy(strategy);  // 전략승인요청 삭제
-            monthlyStatisticsService.deleteMonthlyStatisticsByStrategy(strategy);  // 월간통계 삭제
-            dailyStatisticsService.deleteDailyStatisticsByStrategy(strategy);  // 일간통계 삭제
+            monthlyStatisticsService.deleteAllMonthlyStatisticsByStrategy(strategy);  // 월간통계 삭제
+            dailyStatisticsService.deleteAllDailyStatisticsByStrategy(strategy);  // 일간통계 삭제
             followingStrategyService.deleteFollowingStrategiesByStrategy(strategy);  // 관심전략 삭제
             consultationService.deleteConsultationsByStrategy(strategy);  // 상담 삭제
             strategyIACHistoryRepository.deleteAllByStrategyId(strategyId);  // 관계테이블이력 삭제

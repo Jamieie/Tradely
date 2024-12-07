@@ -3,14 +3,18 @@ package com.sysmatic2.finalbe.strategy.common;
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.databind.DeserializationContext;
 import com.fasterxml.jackson.databind.JsonDeserializer;
+import com.sysmatic2.finalbe.exception.InvalidDateException;
+import com.sysmatic2.finalbe.strategy.common.HolidayUtil;
 
 import java.io.IOException;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Optional;
 
 public class LocalDateDeserializer extends JsonDeserializer<LocalDate> {
+
     private static final List<DateTimeFormatter> FORMATTERS = Arrays.asList(
             DateTimeFormatter.ofPattern("yyyyMMdd"),
             DateTimeFormatter.ofPattern("yyyy-MM-dd"),
@@ -19,32 +23,38 @@ public class LocalDateDeserializer extends JsonDeserializer<LocalDate> {
 
     @Override
     public LocalDate deserialize(JsonParser parser, DeserializationContext context) throws IOException {
-        String date = parser.getText();
-        for (DateTimeFormatter formatter : FORMATTERS) {
-            try {
-                // LocalDate.parse는 유효하지 않은 날짜에서 예외를 던짐
-                LocalDate parsedDate = LocalDate.parse(date, formatter);
+        return deserialize(parser.getText());
+    }
 
-                // 포맷된 값이 입력값과 동일한지 확인 (2024-1-2가 2024-01-02로 해석되는 경우 방지)
-                if (!parsedDate.format(formatter).equals(date)) {
-                    continue;
-                }
+    // 문자열로 날짜를 파싱 및 검증
+    public LocalDate deserialize(String date) {
+        for (DateTimeFormatter formatter : FORMATTERS) {
+            Optional<LocalDate> parseDate = tryParseDate(date, formatter);
+            if (parseDate.isPresent()) {
+                LocalDate validDate = parseDate.get();
 
                 // 공휴일 및 주말 체크
-                if (com.sysmatic2.finalbe.strategy.common.HolidayUtil.isHolidayOrWeekend(parsedDate)) {
-                    throw new IllegalArgumentException("공휴일 또는 주말은 허용되지 않는 날짜입니다.");
+                if (HolidayUtil.isHolidayOrWeekend(validDate)) {
+                    throw new InvalidDateException("공휴일 또는 주말은 허용되지 않는 날짜입니다: " + validDate);
                 }
 
                 // 미래 날짜 제한
-                if (parsedDate.isAfter(LocalDate.now())) {
-                    throw new IllegalArgumentException("미래 날짜는 허용되지 않습니다.");
+                if (validDate.isAfter(LocalDate.now())) {
+                    throw new InvalidDateException("미래 날짜는 허용되지 않습니다: " + validDate);
                 }
 
-                return parsedDate; // 유효한 날짜 반환
-            } catch (Exception ignored) {
-                // 포맷 불일치 예외 무시
+                return validDate; // 유효한 날짜 반환
             }
         }
-        throw new IllegalArgumentException("지원하지 않는 날짜 형식입니다. (허용 형식: yyyyMMdd, yyyy-MM-dd, yyyy/MM/dd)");
+        throw new InvalidDateException("지원하지 않는 날짜 형식입니다: " + date +
+                " (허용 형식: yyyyMMdd, yyyy-MM-dd, yyyy/MM/dd)");
+    }
+
+    private Optional<LocalDate> tryParseDate(String date, DateTimeFormatter formatter) {
+        try {
+            return Optional.of(LocalDate.parse(date, formatter));
+        } catch (Exception e) {
+            return Optional.empty();
+        }
     }
 }

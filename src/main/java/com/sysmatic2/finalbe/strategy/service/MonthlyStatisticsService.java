@@ -15,7 +15,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
-import java.time.YearMonth;
+import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.Map;
 
@@ -33,9 +33,8 @@ public class MonthlyStatisticsService {
      */
     @Transactional
     public void updateMonthlyStatistics(Long strategyId, DailyStatisticsEntity dailyStatistics) {
-        // 1. 현재 월과 이전 월의 YearMonth 객체 생성
-        YearMonth currentMonth = YearMonth.from(dailyStatistics.getDate()); // 일간 통계 데이터의 날짜로 현재 월 추출
-        YearMonth previousMonth = currentMonth.minusMonths(1); // 현재 월에서 1개월 차감해 이전 월 계산
+        // 1. 현재 월의 YearMonth 객체 생성
+        String currentMonth = dailyStatistics.getDate().format(DateTimeFormatter.ofPattern("yyyy-MM")); // 현재 월
 
         // 2. 월간 통계 데이터 가져오기 (없으면 새로 생성)
         MonthlyStatisticsEntity monthlyStatistics = MonthlyStatisticsCalculator.getOrCreateMonthlyStatistics(
@@ -59,17 +58,16 @@ public class MonthlyStatisticsService {
 
         // 3.4 월 손익률 계산
         BigDecimal monthlyReturn = MonthlyStatisticsCalculator.calculateMonthlyReturn(
-                strategyId, currentMonth, dailyStatisticsRepository);
+                strategyId, dailyStatistics, currentMonth, dailyStatisticsRepository);
         monthlyStatistics.setMonthlyReturn(monthlyReturn);
 
         // 3.5 월 누적 손익 계산
-        BigDecimal cumulativeProfitLoss = MonthlyStatisticsCalculator.calculateCumulativeProfitLoss(
-                strategyId, dailyStatistics.getDailyProfitLoss(), monthlyStatisticsRepository);
+        BigDecimal cumulativeProfitLoss = MonthlyStatisticsCalculator.calculateCumulativeProfitLoss(dailyStatistics);
         monthlyStatistics.setMonthlyCumulativeProfitLoss(cumulativeProfitLoss);
 
         // 3.6 월 누적 손익률 계산
         BigDecimal cumulativeReturn = MonthlyStatisticsCalculator.calculateCumulativeReturn(
-                strategyId, currentMonth, dailyStatisticsRepository);
+                dailyStatistics);
         monthlyStatistics.setMonthlyCumulativeReturn(cumulativeReturn);
 
         // 4. 업데이트된 월간 통계 데이터 저장
@@ -94,7 +92,7 @@ public class MonthlyStatisticsService {
         // 3. 데이터 변환
         Page<MonthlyAnalysisResponseDto> responsePage = monthlyPage.map(entity -> MonthlyAnalysisResponseDto.builder()
                 .strategyMonthlyDataId(entity.getStrategyEntity().getStrategyId())
-                .analysisMonth(entity.getAnalysisMonth().format(DateTimeFormatter.ofPattern("yyyy-MM")))
+                .analysisMonth(entity.getAnalysisMonth())
                 .monthlyAveragePrincipal(entity.getMonthlyAvgPrincipal())
                 .monthlyDepWdAmount(entity.getMonthlyDepWdAmount())
                 .monthlyPl(entity.getMonthlyProfitLoss())
@@ -113,7 +111,18 @@ public class MonthlyStatisticsService {
      * @param strategy
      * @return void
      */
-    public void deleteMonthlyStatisticsByStrategy(StrategyEntity strategy) {
-        monthlyStatisticsRepository.deleteByStrategyEntity(strategy);
+    public void deleteAllMonthlyStatisticsByStrategy(StrategyEntity strategy) {
+        monthlyStatisticsRepository.deleteAllByStrategyEntity(strategy);
+    }
+
+    /**
+     * 기준 월 이후의 모든 월간 데이터를 삭제합니다.
+     *
+     * @param strategyId    전략 ID
+     * @param startMonth 기준 월의 시작일 (`LocalDate`)
+     */
+    @Transactional
+    public void deleteMonthlyDataFromMonth(Long strategyId, String startMonth) {
+        monthlyStatisticsRepository.deleteFromMonth(strategyId, startMonth);
     }
 }
