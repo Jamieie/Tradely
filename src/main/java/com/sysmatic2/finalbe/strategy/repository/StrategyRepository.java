@@ -147,6 +147,15 @@ public interface StrategyRepository extends JpaRepository<StrategyEntity, Long>,
     List<StrategyEntity> findByTradingType(@Param("tradingTypeId") Integer tradingTypeId);
 
     /**
+     * 승인된(isApproved) 및 게시된(isPosted) 전략 전체를 조회합니다.
+     *
+     * @param isApproved 승인 여부 (예: "Y" 또는 "N")
+     * @param isPosted   게시 여부 (예: "Y" 또는 "N")
+     * @return 조건을 만족하는 전략의 페이지(Page<StrategyEntity>)
+     */
+    List<StrategyEntity> findByIsApprovedAndIsPosted(String isApproved, String isPosted);
+
+    /**
      * 특정 회원의 팔로워 수 (followers count) 계산하는 기능 : 승인 & 공개 전략에 대해서만 팔로우수 카운트
      */
     @Query("SELECT SUM(s.followersCount) FROM StrategyEntity s WHERE s.writerId = :writerId " +

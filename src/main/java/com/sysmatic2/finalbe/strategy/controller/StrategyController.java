@@ -663,4 +663,16 @@ public class StrategyController {
         Map<String, Object> response = strategyService.getSmScoreTop5Strategies();
         return ResponseEntity.ok(response);
     }
+
+    // 21. 팔로우 랭킹 리스트
+    @Operation(
+            summary = "팔로우 랭킹 조회",
+            description = "팔로우 랭킹 리스트를 반환합니다. 응답에는 멤버 ID, 닉네임, 소개글, 전략 수, 팔로워 수 정보가 포함됩니다."
+    )
+    @GetMapping("/follower-ranking")
+    public ResponseEntity<Map<String, Object>> getStrategyFollowerRanking(int size) {
+        Map<String, Object> response = strategyService.getStrategyFollowerRanking(size);
+        return ResponseEntity.ok(response);
+    }
+
 }
