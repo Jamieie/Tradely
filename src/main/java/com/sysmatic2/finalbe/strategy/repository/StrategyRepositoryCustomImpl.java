@@ -4,7 +4,9 @@ import com.querydsl.core.BooleanBuilder;
 import com.querydsl.core.types.Expression;
 
 import com.querydsl.core.types.dsl.PathBuilder;
+import com.querydsl.jpa.JPAExpressions;
 import com.querydsl.jpa.JPQLQuery;
+import com.querydsl.jpa.impl.JPAQuery;
 import com.querydsl.jpa.impl.JPAQueryFactory;
 import com.sysmatic2.finalbe.exception.InvalidFieldNameException;
 
@@ -159,27 +161,65 @@ public class StrategyRepositoryCustomImpl implements StrategyRepositoryCustom {
         }
 
         // 8. 운용 기간 필터 - 중첩가능
+//        if (searchOptions.getOperationDaysList() != null && !searchOptions.getOperationDaysList().isEmpty()) {
+//            BooleanBuilder dateBuilder = new BooleanBuilder();
+//            LocalDateTime now = LocalDateTime.now();
+//            for (Integer days : searchOptions.getOperationDaysList()) {
+//                switch (days) {
+//                    case 0: // 1년 미만
+//                        dateBuilder.or(strategyQ.writedAt.after(now.minus(1, ChronoUnit.YEARS)));
+//                        break;
+//                    case 1: // 1년 ~ 2년
+//                        dateBuilder.or(strategyQ.writedAt.between(now.minus(2, ChronoUnit.YEARS), now.minus(1, ChronoUnit.YEARS)));
+//                        break;
+//                    case 2: // 2년 ~ 3년
+//                        dateBuilder.or(strategyQ.writedAt.between(now.minus(3, ChronoUnit.YEARS), now.minus(2, ChronoUnit.YEARS)));
+//                        break;
+//                    case 3: // 3년 이상
+//                        dateBuilder.or(strategyQ.writedAt.before(now.minus(3, ChronoUnit.YEARS)));
+//                        break;
+//                }
+//            }
+//            strategyBuilder.and(dateBuilder);
+//        }
+        // 8. 운용 기간 필터 - 중첩가능
         if (searchOptions.getOperationDaysList() != null && !searchOptions.getOperationDaysList().isEmpty()) {
             BooleanBuilder dateBuilder = new BooleanBuilder();
-            LocalDateTime now = LocalDateTime.now();
+
+            // 서브쿼리 없이 최신 데이터를 가져오기 위해 상위 쿼리에서 조인 처리
+            JPQLQuery<Long> strategyIdsWithOperationDays = queryFactory
+                    .select(dailyStatisticsQ.strategyEntity.strategyId)
+                    .from(dailyStatisticsQ)
+                    .where(dailyStatisticsQ.date.eq(
+                            JPAExpressions.select(dailyStatisticsQ.date.max())
+                                    .from(dailyStatisticsQ)
+                                    .where(dailyStatisticsQ.strategyEntity.eq(strategyQ))
+                    ))
+                    .distinct();
+
+            // Operation Days 필터 조건 생성
             for (Integer days : searchOptions.getOperationDaysList()) {
                 switch (days) {
                     case 0: // 1년 미만
-                        dateBuilder.or(strategyQ.writedAt.after(now.minus(1, ChronoUnit.YEARS)));
+                        dateBuilder.or(dailyStatisticsQ.strategyOperationDays.lt(365));
                         break;
                     case 1: // 1년 ~ 2년
-                        dateBuilder.or(strategyQ.writedAt.between(now.minus(2, ChronoUnit.YEARS), now.minus(1, ChronoUnit.YEARS)));
+                        dateBuilder.or(dailyStatisticsQ.strategyOperationDays.between(365, 730));
                         break;
                     case 2: // 2년 ~ 3년
-                        dateBuilder.or(strategyQ.writedAt.between(now.minus(3, ChronoUnit.YEARS), now.minus(2, ChronoUnit.YEARS)));
+                        dateBuilder.or(dailyStatisticsQ.strategyOperationDays.between(730, 1095));
                         break;
                     case 3: // 3년 이상
-                        dateBuilder.or(strategyQ.writedAt.before(now.minus(3, ChronoUnit.YEARS)));
+                        dateBuilder.or(dailyStatisticsQ.strategyOperationDays.gt(1095));
                         break;
                 }
             }
-            strategyBuilder.and(dateBuilder);
+
+            // 필터 적용
+            strategyBuilder.and(strategyQ.strategyId.in(strategyIdsWithOperationDays));
+            statisticsBuilder.and(dateBuilder);
         }
+
 
         // 10. 원금 필터(제일 최근 데이터 기준)
         if (searchOptions.getMinPrincipal() != null || searchOptions.getMaxPrincipal() != null) {

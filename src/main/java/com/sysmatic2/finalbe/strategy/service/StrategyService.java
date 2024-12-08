@@ -1361,7 +1361,7 @@ public class StrategyService {
                             .orElseThrow(() -> new IllegalArgumentException("Member not found: " + writerId));
 
                     // 총 팔로워 수 합산
-                    int followerCnt = Math.toIntExact(topStrategies.stream()
+                    Integer followerCnt = Math.toIntExact(topStrategies.stream()
                             .mapToLong(StrategyEntity::getFollowersCount)
                             .sum());
 
@@ -1369,6 +1369,7 @@ public class StrategyService {
                     return new FollowingRankingResponseDto(
                             member.getMemberId(),
                             member.getNickname(),
+                            member.getProfilePath(),
                             member.getIntroduction(),
                             memberStrategies.size(),
                             followerCnt
