@@ -44,7 +44,8 @@ public interface StrategyRepository extends JpaRepository<StrategyEntity, Long>,
     @Query("SELECT s FROM StrategyEntity s " +
             "WHERE s.strategyTitle LIKE %:keyword% " +
             "AND s.isPosted = :isPosted " +
-            "AND s.isApproved = :isApproved")
+            "AND s.isApproved = :isApproved " +
+            "ORDER BY s.smScore DESC")
     Page<StrategyEntity> searchByKeyword(
             @Param("keyword") String keyword,
             @Param("isPosted") String isPosted,
