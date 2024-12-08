@@ -1333,4 +1333,13 @@ public class StrategyService {
 
         return response;
     }
+
+    // memberID로 특정 회원의 팔로워 수 조회하기
+    @Transactional(readOnly = true)
+    public Long getTotalFollowersCntByWriterId(String writerId) {
+        // TODO) 해당 회원의 등급이 INVESTOR일 경우, 트레이더가 아니라고 예외 발생
+
+        // 트레이더 회원의 팔로워 수 전체 조회
+        return strategyRepo.findTotalFollowersCountByWriterId(writerId).orElse(0L);
+    }
 }

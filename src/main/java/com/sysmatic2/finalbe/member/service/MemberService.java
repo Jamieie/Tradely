@@ -174,7 +174,16 @@ public class MemberService {
 
     @Transactional(readOnly = true)
     public SimpleProfileDTO getSimpleProfile(String memberId) {
-        return memberRepository.findSimpleProfileByMemberId(memberId).orElseThrow(MemberNotFoundException::new);
+        // 회원 테이블에서 회원의 간단한 프로필 조회
+        SimpleProfileDTO simpleProfile = memberRepository.findSimpleProfileByMemberId(memberId).orElseThrow(MemberNotFoundException::new);
+
+        // 회원의 등급이 TRADER면 팔로워수 조회하여 추가
+        if ("TRADER".equals(simpleProfile.getMemberType())) {
+            Long followersCnt = strategyService.getTotalFollowersCntByWriterId(memberId);
+            simpleProfile.setFollowersCnt(followersCnt);
+        }
+
+        return simpleProfile;
     }
 
     @Transactional(readOnly = true)
