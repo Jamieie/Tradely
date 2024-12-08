@@ -15,4 +15,5 @@ public class TraderSearchResultDto {
     private String introduction;
     private String profilePath;
     private Integer strategyCnt;
+    private Integer followerCnt;
 }

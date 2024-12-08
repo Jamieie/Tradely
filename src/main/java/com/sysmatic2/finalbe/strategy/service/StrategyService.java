@@ -1334,6 +1334,58 @@ public class StrategyService {
         return response;
     }
 
+    // 11. 전략 팔로워 수 기반 상위 유저 리스트
+    @Transactional(readOnly = true)
+    public Map<String, Object> getStrategyFollowerRanking(Integer size) {
+
+        // 조건: isApproved = "Y" AND isPosted = "Y"인 전체 전략
+        List<StrategyEntity> strategyPage = strategyRepo.findByIsApprovedAndIsPosted("Y", "Y");
+
+        // 멤버별 전략 데이터 그룹화
+        Map<String, List<StrategyEntity>> strategiesGroupedByMember = strategyPage.stream()
+                .collect(Collectors.groupingBy(StrategyEntity::getWriterId));
+
+        // DTO 생성 (멤버별 상위 size개 전략 집계)
+        List<FollowingRankingResponseDto> dtoList = strategiesGroupedByMember.entrySet().stream()
+                .map(entry -> {
+                    String writerId = entry.getKey();
+                    List<StrategyEntity> memberStrategies = entry.getValue();
+
+                    // 상위 size개의 전략 (팔로워 수 기준)
+                    List<StrategyEntity> topStrategies = memberStrategies.stream()
+                            .sorted(Comparator.comparing(StrategyEntity::getFollowersCount).reversed())
+                            .collect(Collectors.toList());
+
+                    // 각 멤버 정보 조회
+                    MemberEntity member = memberRepository.findById(writerId)
+                            .orElseThrow(() -> new IllegalArgumentException("Member not found: " + writerId));
+
+                    // 총 팔로워 수 합산
+                    int followerCnt = Math.toIntExact(topStrategies.stream()
+                            .mapToLong(StrategyEntity::getFollowersCount)
+                            .sum());
+
+                    // DTO 생성
+                    return new FollowingRankingResponseDto(
+                            member.getMemberId(),
+                            member.getNickname(),
+                            member.getIntroduction(),
+                            memberStrategies.size(),
+                            followerCnt
+                    );
+                })
+                .sorted(Comparator.comparing(FollowingRankingResponseDto::getFollowerCnt).reversed()) // 전체 팔로워 수 기준 정렬
+                .limit(size) // 상위 pageSize만 포함
+                .collect(Collectors.toList());
+
+        // 결과를 Map으로 변환
+        Map<String, Object> response = new HashMap<>();
+        response.put("data", dtoList);
+        response.put("timestamp", Instant.now());
+
+        return response;
+    }
+
     // memberID로 특정 회원의 팔로워 수 조회하기
     @Transactional(readOnly = true)
     public Long getTotalFollowersCntByWriterId(String writerId) {
