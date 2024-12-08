@@ -183,12 +183,12 @@ public class GlobalExceptionHandler {
             fieldErrors.put(field, message);
         } else if (ex instanceof StrategyNotApprovedException) {
             StrategyNotApprovedException notApprovedEx = (StrategyNotApprovedException) ex;
-            String field = "memberTerm";
+            String field = "strategy";
             String message = notApprovedEx.getMessage();
             fieldErrors.put(field, message);
         } else if (ex instanceof DailyDataNotEnoughException) {
             DailyDataNotEnoughException notApprovedEx = (DailyDataNotEnoughException) ex;
-            String field = "memberTerm";
+            String field = "strategy";
             String message = notApprovedEx.getMessage();
             fieldErrors.put(field, message);
         }
