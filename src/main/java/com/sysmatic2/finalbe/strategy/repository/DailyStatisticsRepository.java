@@ -393,7 +393,9 @@ public interface DailyStatisticsRepository extends JpaRepository<DailyStatistics
      */
     //시작일과 종료일 사이의 엔티티 갯수 반환
      @Query("SELECT COUNT(ds) FROM DailyStatisticsEntity ds " +
-             "WHERE ds.strategyEntity.strategyId = :strategyId AND ds.date BETWEEN :startDate AND :endDate")
+             "WHERE ds.strategyEntity.strategyId = :strategyId " +
+             "AND ds.date BETWEEN :startDate AND :endDate " +
+             "AND (ds.dailyProfitLoss <> 0 OR ds.depWdPrice <> 0)")
     Long countByStrategyAndDateBetween(@Param("strategyId") Long strategyId,
                                        @Param("startDate") LocalDate startDate,
                                        @Param("endDate") LocalDate endDate);
