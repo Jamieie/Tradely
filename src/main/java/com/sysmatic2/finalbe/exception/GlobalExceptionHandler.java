@@ -139,7 +139,7 @@ public class GlobalExceptionHandler {
     @ExceptionHandler({ConstraintViolationException.class, MethodArgumentNotValidException.class,
             InvestmentAssetClassesNotActiveException.class, StrategyAlreadyApprovedException.class,
             StrategyAlreadyTerminatedException.class, StrategyTerminatedException.class, RequiredAgreementException.class,
-            StrategyNotApprovedException.class})
+            StrategyNotApprovedException.class, DailyDataNotEnoughException.class})
     public ResponseEntity<Object> handleValidationExceptions(Exception ex) {
         logger.warn("Validation failed: {}", ex.getMessage());
 
@@ -183,7 +183,12 @@ public class GlobalExceptionHandler {
             fieldErrors.put(field, message);
         } else if (ex instanceof StrategyNotApprovedException) {
             StrategyNotApprovedException notApprovedEx = (StrategyNotApprovedException) ex;
-            String field = "memberTerm";
+            String field = "strategy";
+            String message = notApprovedEx.getMessage();
+            fieldErrors.put(field, message);
+        } else if (ex instanceof DailyDataNotEnoughException) {
+            DailyDataNotEnoughException notApprovedEx = (DailyDataNotEnoughException) ex;
+            String field = "strategy";
             String message = notApprovedEx.getMessage();
             fieldErrors.put(field, message);
         }
