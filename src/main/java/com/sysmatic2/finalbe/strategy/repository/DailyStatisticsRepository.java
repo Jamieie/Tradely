@@ -385,14 +385,18 @@ public interface DailyStatisticsRepository extends JpaRepository<DailyStatistics
     );
 
      /**
-     * 시작일과 종료일 사이의 엔티티 갯수 반환
+     * 시작일과 종료일 사이의 엔티티 갯수 반환 - Date 필드 기반
      *
      * @param startDate 조회 시작일
      * @param endDate 조회 종료일
      * @return 엔티티 갯수
      */
     //시작일과 종료일 사이의 엔티티 갯수 반환
-    Long countByDateBetween(LocalDate startDate, LocalDate endDate);
+     @Query("SELECT COUNT(ds) FROM DailyStatisticsEntity ds " +
+             "WHERE ds.strategyEntity.strategyId = :strategyId AND ds.date BETWEEN :startDate AND :endDate")
+    Long countByStrategyAndDateBetween(@Param("strategyId") Long strategyId,
+                                       @Param("startDate") LocalDate startDate,
+                                       @Param("endDate") LocalDate endDate);
 
     /**
      * 특정 전략 ID에 대한 누적수익률 데이터를 날짜 오름차순으로 조회합니다.
