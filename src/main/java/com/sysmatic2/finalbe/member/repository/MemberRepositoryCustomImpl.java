@@ -36,10 +36,16 @@ public class MemberRepositoryCustomImpl implements MemberRepositoryCustom {
         if ("latestSignup".equalsIgnoreCase(sortOption)) {
             // 최신 가입일순 정렬
             sortOrder = member.signupAt.desc();
-        } else {
+        } else if("strategyCnt".equalsIgnoreCase(sortOption)){
             // 기본: 전략 수가 많은 순 정렬
             sortOrder = Expressions.numberTemplate(Integer.class,
                     "(SELECT COUNT(s.strategyId) FROM StrategyEntity s WHERE s.writerId = {0} AND s.isApproved = 'Y')",
+                    member.memberId).desc();
+        } else {
+            sortOrder = Expressions.numberTemplate(Integer.class,
+                    "(SELECT COALESCE(SUM(s.followersCount), 0) " +
+                            "FROM StrategyEntity s " +
+                            "WHERE s.writerId = {0} AND s.isApproved = 'Y' AND s.isPosted = 'Y')",
                     member.memberId).desc();
         }
 
@@ -53,7 +59,13 @@ public class MemberRepositoryCustomImpl implements MemberRepositoryCustom {
                         member.profilePath,                       // 프로필 이미지 링크
                         Expressions.numberTemplate(Integer.class, // 전략 수 서브쿼리
                                 "(SELECT COUNT(s.strategyId) FROM StrategyEntity s WHERE s.writerId = {0} AND s.isApproved = 'Y' AND s.isPosted = 'Y')",
+                                member.memberId),
+                        Expressions.numberTemplate(Integer.class,
+                                "(SELECT COALESCE(SUM(s.followersCount), 0) " +
+                                        "FROM StrategyEntity s " +
+                                        "WHERE s.writerId = {0} AND s.isApproved = 'Y' AND s.isPosted = 'Y')",
                                 member.memberId)
+
                 ))
                 .from(member)
                 .where(
