@@ -1097,6 +1097,11 @@ public class StrategyService {
             throw new StrategyAlreadyTerminatedException("전략이 이미 운용종료된 상태입니다.");
         }
 
+        //승인상태가 P(대기)이거나 N(미승인)인 경우 예외 반환
+        if(strategyEntity.getIsApproved().equals("P") || strategyEntity.getIsApproved().equals("N")) {
+            throw new StrategyNotApprovedException("승인되지 않은 전략입니다.");
+        }
+
         //트레이더면 작성자 판별
         if(isTrader && !strategyEntity.getWriterId().equals(memberId)) {
             throw new AccessDeniedException("운용종료할 권한이 없습니다.");
