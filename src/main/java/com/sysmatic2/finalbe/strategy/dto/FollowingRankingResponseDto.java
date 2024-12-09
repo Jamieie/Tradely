@@ -5,6 +5,8 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
+import java.math.BigDecimal;
+
 @Getter
 @Setter
 @NoArgsConstructor
@@ -16,4 +18,5 @@ public class FollowingRankingResponseDto {
     private String introduction; //자기소개글
     private Integer strategyCnt; //전략 수
     private Integer followerCnt; //전체 전략에 대한 팔로워 수
+    private BigDecimal totalCumulativeProfitLoss; // 전체 전략에 대한 누적손익액 합산
 }

@@ -1351,17 +1351,20 @@ public class StrategyService {
                     String writerId = entry.getKey();
                     List<StrategyEntity> memberStrategies = entry.getValue();
 
-                    // 상위 size개의 전략 (팔로워 수 기준)
-                    List<StrategyEntity> topStrategies = memberStrategies.stream()
-                            .sorted(Comparator.comparing(StrategyEntity::getFollowersCount).reversed())
-                            .collect(Collectors.toList());
+                    // 각 전략에 해당하는 누적수익금액(누적손익) 조회 후 합산
+                    BigDecimal totalCumulativeProfitLoss = memberStrategies.stream()
+                            .map(strategy -> dailyStatisticsRepository.findByStrategyEntityOrderByDateDesc(strategy).stream()
+                                    .findFirst()
+                                    .map(DailyStatisticsEntity::getCumulativeProfitLoss)
+                                    .orElse(BigDecimal.ZERO))
+                            .reduce(BigDecimal.ZERO, BigDecimal::add);
 
                     // 각 멤버 정보 조회
                     MemberEntity member = memberRepository.findById(writerId)
                             .orElseThrow(() -> new IllegalArgumentException("Member not found: " + writerId));
 
                     // 총 팔로워 수 합산
-                    Integer followerCnt = Math.toIntExact(topStrategies.stream()
+                    Integer followerCnt = Math.toIntExact(memberStrategies.stream()
                             .mapToLong(StrategyEntity::getFollowersCount)
                             .sum());
 
@@ -1372,7 +1375,8 @@ public class StrategyService {
                             member.getProfilePath(),
                             member.getIntroduction(),
                             memberStrategies.size(),
-                            followerCnt
+                            followerCnt,
+                            totalCumulativeProfitLoss
                     );
                 })
                 .sorted(Comparator.comparing(FollowingRankingResponseDto::getFollowerCnt).reversed()) // 전체 팔로워 수 기준 정렬
