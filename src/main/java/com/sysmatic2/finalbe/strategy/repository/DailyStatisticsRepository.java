@@ -138,6 +138,8 @@ public interface DailyStatisticsRepository extends JpaRepository<DailyStatistics
      */
     Page<DailyStatisticsEntity> findByStrategyEntityStrategyIdOrderByDateDesc(Long strategyId, Pageable pageable);
 
+    List<DailyStatisticsEntity> findByStrategyEntityOrderByDateDesc(StrategyEntity strategy);
+
     /**
      * 특정 전략 ID에 대한 전략 통계 데이터를 조회합니다.
      *
