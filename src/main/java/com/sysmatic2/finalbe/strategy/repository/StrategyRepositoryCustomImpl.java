@@ -161,28 +161,6 @@ public class StrategyRepositoryCustomImpl implements StrategyRepositoryCustom {
         }
 
         // 8. 운용 기간 필터 - 중첩가능
-//        if (searchOptions.getOperationDaysList() != null && !searchOptions.getOperationDaysList().isEmpty()) {
-//            BooleanBuilder dateBuilder = new BooleanBuilder();
-//            LocalDateTime now = LocalDateTime.now();
-//            for (Integer days : searchOptions.getOperationDaysList()) {
-//                switch (days) {
-//                    case 0: // 1년 미만
-//                        dateBuilder.or(strategyQ.writedAt.after(now.minus(1, ChronoUnit.YEARS)));
-//                        break;
-//                    case 1: // 1년 ~ 2년
-//                        dateBuilder.or(strategyQ.writedAt.between(now.minus(2, ChronoUnit.YEARS), now.minus(1, ChronoUnit.YEARS)));
-//                        break;
-//                    case 2: // 2년 ~ 3년
-//                        dateBuilder.or(strategyQ.writedAt.between(now.minus(3, ChronoUnit.YEARS), now.minus(2, ChronoUnit.YEARS)));
-//                        break;
-//                    case 3: // 3년 이상
-//                        dateBuilder.or(strategyQ.writedAt.before(now.minus(3, ChronoUnit.YEARS)));
-//                        break;
-//                }
-//            }
-//            strategyBuilder.and(dateBuilder);
-//        }
-        // 8. 운용 기간 필터 - 중첩가능
         if (searchOptions.getOperationDaysList() != null && !searchOptions.getOperationDaysList().isEmpty()) {
             BooleanBuilder dateBuilder = new BooleanBuilder();
 
@@ -191,7 +169,7 @@ public class StrategyRepositoryCustomImpl implements StrategyRepositoryCustom {
                     .select(dailyStatisticsQ.strategyEntity.strategyId)
                     .from(dailyStatisticsQ)
                     .where(dailyStatisticsQ.date.eq(
-                            JPAExpressions.select(dailyStatisticsQ.date.max())
+                            queryFactory.select(dailyStatisticsQ.date.max())
                                     .from(dailyStatisticsQ)
                                     .where(dailyStatisticsQ.strategyEntity.eq(strategyQ))
                     ))
@@ -216,8 +194,7 @@ public class StrategyRepositoryCustomImpl implements StrategyRepositoryCustom {
             }
 
             // 필터 적용
-            strategyBuilder.and(strategyQ.strategyId.in(strategyIdsWithOperationDays));
-            statisticsBuilder.and(dateBuilder);
+            strategyBuilder.and(strategyQ.strategyId.in(strategyIdsWithOperationDays)); //메인쿼리
         }
 
 
