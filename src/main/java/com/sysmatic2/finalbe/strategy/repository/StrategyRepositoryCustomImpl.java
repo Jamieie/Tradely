@@ -1,6 +1,7 @@
 package com.sysmatic2.finalbe.strategy.repository;
 
 import com.querydsl.core.BooleanBuilder;
+import com.querydsl.core.Tuple;
 import com.querydsl.core.types.Expression;
 
 import com.querydsl.core.types.dsl.PathBuilder;
@@ -162,43 +163,26 @@ public class StrategyRepositoryCustomImpl implements StrategyRepositoryCustom {
 
         // 8. 운용 기간 필터 - 중첩가능
         if (searchOptions.getOperationDaysList() != null && !searchOptions.getOperationDaysList().isEmpty()) {
-            BooleanBuilder dateBuilder = new BooleanBuilder();
-
-            // 서브쿼리 없이 최신 데이터를 가져오기 위해 상위 쿼리에서 조인 처리
-            JPQLQuery<Long> strategyIdsWithOperationDays = queryFactory
-                    .select(dailyStatisticsQ.strategyEntity.strategyId)
-                    .from(dailyStatisticsQ)
-                    .where(dailyStatisticsQ.date.eq(
-                            queryFactory.select(dailyStatisticsQ.date.max())
-                                    .from(dailyStatisticsQ)
-                                    .where(dailyStatisticsQ.strategyEntity.eq(strategyQ))
-                    ))
-                    .distinct();
-
-            // Operation Days 필터 조건 생성
             for (Integer days : searchOptions.getOperationDaysList()) {
                 switch (days) {
-                    case 0: // 1년 미만
-                        dateBuilder.or(dailyStatisticsQ.strategyOperationDays.lt(365));
+                    case 1: // 1년 미만
+                        statisticsBuilder.or(dailyStatisticsQ.strategyOperationDays.lt(365));
                         break;
-                    case 1: // 1년 ~ 2년
-                        dateBuilder.or(dailyStatisticsQ.strategyOperationDays.between(365, 730));
+                    case 2: // 1년 ~ 2년
+                        statisticsBuilder.or(dailyStatisticsQ.strategyOperationDays.between(365, 730));
                         break;
-                    case 2: // 2년 ~ 3년
-                        dateBuilder.or(dailyStatisticsQ.strategyOperationDays.between(730, 1095));
+                    case 3: // 2년 ~ 3년
+                        statisticsBuilder.or(dailyStatisticsQ.strategyOperationDays.between(730, 1095));
                         break;
-                    case 3: // 3년 이상
-                        dateBuilder.or(dailyStatisticsQ.strategyOperationDays.gt(1095));
+                    case 4: // 3년 이상
+                        statisticsBuilder.or(dailyStatisticsQ.strategyOperationDays.gt(1095));
                         break;
                 }
             }
-
-            // 필터 적용
-            strategyBuilder.and(strategyQ.strategyId.in(strategyIdsWithOperationDays)); //메인쿼리
         }
 
 
-        // 10. 원금 필터(제일 최근 데이터 기준)
+        // 9. 원금 필터(제일 최근 데이터 기준)
         if (searchOptions.getMinPrincipal() != null || searchOptions.getMaxPrincipal() != null) {
             BooleanBuilder principalBuilder = new BooleanBuilder();
             if (searchOptions.getMinPrincipal() != null) {
@@ -210,7 +194,7 @@ public class StrategyRepositoryCustomImpl implements StrategyRepositoryCustom {
             statisticsBuilder.and(principalBuilder);
         }
 
-        // 11. SM-Score 필터
+        // 10. SM-Score 필터
         if (searchOptions.getMinSmscore() != null || searchOptions.getMaxSmscore() != null) {
             BooleanBuilder smScoreBuilder = new BooleanBuilder();
             if (searchOptions.getMinSmscore() != null) {
@@ -222,7 +206,7 @@ public class StrategyRepositoryCustomImpl implements StrategyRepositoryCustom {
             strategyBuilder.and(smScoreBuilder);
         }
 
-        // 12. MDD(최대자본인하율) 필터
+        // 11. MDD(최대자본인하율) 필터
         if (searchOptions.getMinMdd() != null || searchOptions.getMaxMdd() != null) {
             BooleanBuilder mddBuilder = new BooleanBuilder();
             if (searchOptions.getMinMdd() != null) {
@@ -234,12 +218,12 @@ public class StrategyRepositoryCustomImpl implements StrategyRepositoryCustom {
             statisticsBuilder.and(mddBuilder);
         }
 
-        //13. 날짜 필터링 - 해당기간의 일간데이터
+        //12. 날짜 필터링 - 해당기간의 일간데이터
         if (searchOptions.getStartDate() != null && searchOptions.getEndDate() != null) {
             statisticsBuilder.and(dailyStatisticsQ.date.between(searchOptions.getStartDate(), searchOptions.getEndDate()));
         }
 
-        //14. 손익률 필터
+        //13. 손익률 필터
         if (searchOptions.getReturnRateList() != null && !searchOptions.getReturnRateList().isEmpty()) {
             BooleanBuilder returnRateBuilder = new BooleanBuilder();
             searchOptions.getReturnRateList().forEach(rate -> {
@@ -263,70 +247,37 @@ public class StrategyRepositoryCustomImpl implements StrategyRepositoryCustom {
             statisticsBuilder.and(returnRateBuilder);
         }
 
-        //1)서브쿼리 관련 필터 없는경우 메인쿼리만 동작함.
-        if (!statisticsBuilder.hasValue()) {
-            List<StrategyEntity> allStrategies = queryFactory
-                    .selectFrom(strategyQ)
-                    .where(strategyBuilder)
-                    .offset(pageable.getOffset())
-                    .limit(pageable.getPageSize())
+        // 서브쿼리 결과가 없는 경우 바로 반환
+        if (statisticsBuilder.hasValue()) {
+            List<Long> strategyIds = queryFactory
+                    .select(dailyStatisticsQ.strategyEntity.strategyId)
+                    .from(dailyStatisticsQ)
+                    .where(statisticsBuilder)
                     .distinct()
                     .fetch();
 
-            Long totalCount = queryFactory
-                    .select(strategyQ.count())
-                    .from(strategyQ)
-                    .where(strategyBuilder)
-                    .fetchOne();
+            if (strategyIds.isEmpty()) {
+                return new PageImpl<>(List.of(), pageable, 0);
+            }
 
-            return new PageImpl<>(allStrategies, pageable, totalCount);
+            // 서브쿼리 결과를 메인 조건에 추가
+            strategyBuilder.and(strategyQ.strategyId.in(strategyIds));
         }
 
-        //2) 서브쿼리 필터가 있는경우
-        //DailyStatistics 관련 서브쿼리
-        JPQLQuery<Long> strategyIdsQuery = queryFactory
-                .select(dailyStatisticsQ.strategyEntity.strategyId)
-                .from(dailyStatisticsQ)
-                .where(statisticsBuilder)
-                .distinct();
-
-        //서브쿼리의 결과 값들 id 저장
-        List<Long> strategyIds = strategyIdsQuery.fetch();
-
-        //전략 관련 메인 쿼리
-        //3-1)서브쿼리 결과 없는경우
-        if(strategyIds.isEmpty()) {
-            List<StrategyEntity> allStrategies = queryFactory
-                    .selectFrom(strategyQ)
-                    .where(strategyBuilder)
-                    .offset(pageable.getOffset())
-                    .limit(pageable.getPageSize())
-                    .distinct()
-                    .fetch();
-
-            Long totalCount = queryFactory
-                    .select(strategyQ.count())
-                    .from(strategyQ)
-                    .where(strategyBuilder)
-                    .fetchOne();
-
-            return new PageImpl<>(allStrategies, pageable, totalCount);
-        }
-
-        //3-2)서브쿼리 결과 있는 경우
+        // 최종 쿼리 실행
         List<StrategyEntity> strategyEntities = queryFactory
                 .selectFrom(strategyQ)
-                .where(strategyBuilder.and(strategyQ.strategyId.in(strategyIds)))
+                .where(strategyBuilder)
+                .orderBy(strategyQ.smScore.desc())
                 .offset(pageable.getOffset())
                 .limit(pageable.getPageSize())
                 .distinct()
                 .fetch();
 
-        //결과 갯수
-        Long resultCnt = queryFactory
+        long totalCount = queryFactory
                 .select(strategyQ.count())
                 .from(strategyQ)
-                .where(strategyBuilder.and(strategyQ.strategyId.in(strategyIdsQuery)))
+                .where(strategyBuilder)
                 .fetchOne();
 
         //결과 없거나 빈경우
@@ -334,9 +285,7 @@ public class StrategyRepositoryCustomImpl implements StrategyRepositoryCustom {
             return new PageImpl<>(List.of(), pageable, 0);
         }
 
-
-
-        return new PageImpl<>(strategyEntities, pageable, resultCnt);
+        return new PageImpl<>(strategyEntities, pageable, totalCount);
     }
 
     /**
