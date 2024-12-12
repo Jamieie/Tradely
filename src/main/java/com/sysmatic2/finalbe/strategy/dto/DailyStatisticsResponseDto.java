@@ -18,6 +18,7 @@ public class DailyStatisticsResponseDto {
     private Long dailyStrategicStatisticsId; // 일간 분석 목록 ID
     private LocalDate inputDate;             // 날짜
     private BigDecimal principal;           // 원금
+    private BigDecimal balance;             // 잔고
     private BigDecimal depWdPrice;          // 입출금액
     private BigDecimal dailyProfitLoss;     // 일 손익
     private BigDecimal dailyPlRate;         // 일 손익률
@@ -36,6 +37,7 @@ public class DailyStatisticsResponseDto {
                 .dailyStrategicStatisticsId(entity.getDailyStatisticsId()) // 엔티티 ID를 DTO ID로 매핑
                 .inputDate(entity.getDate()) // 날짜
                 .principal(entity.getPrincipal()) // 원금
+                .balance(entity.getBalance()) // 잔고
                 .depWdPrice(entity.getDepWdPrice()) // 입출금액
                 .dailyProfitLoss(entity.getDailyProfitLoss()) // 일 손익
                 .dailyPlRate(entity.getDailyPlRate()) // 일 손익률
