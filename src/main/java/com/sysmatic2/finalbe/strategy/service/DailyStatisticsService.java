@@ -108,7 +108,7 @@ public class DailyStatisticsService {
     }
 
     /**
-     * 특정 전략의 일간 통계 데이터를 최신일자순으로 페이징하여 조회합니다.
+     * 특정 전략의 일간 분석 데이터를 최신일자순으로 페이징하여 조회합니다.
      *
      * @param strategyId 전략 ID.
      * @param page       페이지 번호 (기본값: 0).

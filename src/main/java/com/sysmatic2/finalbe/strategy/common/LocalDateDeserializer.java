@@ -34,9 +34,9 @@ public class LocalDateDeserializer extends JsonDeserializer<LocalDate> {
                 LocalDate validDate = parseDate.get();
 
                 // 공휴일 및 주말 체크
-                if (HolidayUtil.isHolidayOrWeekend(validDate)) {
-                    throw new InvalidDateException("공휴일 또는 주말은 허용되지 않는 날짜입니다: " + validDate);
-                }
+//                if (HolidayUtil.isHolidayOrWeekend(validDate)) {
+//                    throw new InvalidDateException("공휴일 또는 주말은 허용되지 않는 날짜입니다: " + validDate);
+//                }
 
                 // 미래 날짜 제한
                 if (validDate.isAfter(LocalDate.now())) {
