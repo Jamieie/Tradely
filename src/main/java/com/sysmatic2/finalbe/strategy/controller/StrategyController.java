@@ -27,10 +27,7 @@ import org.springframework.web.server.ResponseStatusException;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.NoSuchElementException;
+import java.util.*;
 
 @RestController
 @RequestMapping("/api/strategies")
@@ -323,19 +320,21 @@ public class StrategyController {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "일간 분석 데이터는 최대 5개까지 등록 가능합니다.");
         }
 
-//        // 2. 일간 분석 데이터를 저장
-        // 일간 분석 데이터를 하나씩 처리하여 저장
-        payload.getPayload().forEach(entry -> {
-            /// 각 데이터 항목을 기반으로 일간 분석 데이터를 처리하는 서비스 메서드 호출
-            dailyStatisticsService.registerDailyStatistics(
-                    strategyId,  // 전략 ID를 서비스 메서드에 전달
-                    DailyStatisticsReqDto.builder()
-                            .date(entry.getDate())  // 일간 분석 데이터의 날짜
-                            .dailyProfitLoss(entry.getDailyProfitLoss())  // 일손익
-                            .depWdPrice(entry.getDepWdPrice())  // 입출금 금액
-                            .build()
-            );
-        });
+        // 2. 일간 분석 데이터를 처리
+        // 날짜 오름차순 정렬 후 처리
+        payload.getPayload().stream()
+                .sorted(Comparator.comparing(DailyStatisticsReqDto::getDate)) // 날짜 기준 오름차순 정렬
+                .forEach(entry -> {
+                    // 각 데이터 항목을 기반으로 일간 분석 데이터를 처리하는 서비스 메서드 호출
+                    dailyStatisticsService.registerDailyStatistics(
+                            strategyId,  // 전략 ID를 서비스 메서드에 전달
+                            DailyStatisticsReqDto.builder()
+                                    .date(entry.getDate())  // 일간 분석 데이터의 날짜
+                                    .dailyProfitLoss(entry.getDailyProfitLoss())  // 일손익
+                                    .depWdPrice(entry.getDepWdPrice())  // 입출금 금액
+                                    .build()
+                    );
+                });
 
         // 2. 일간 분석 데이터를 처리
         // 가장 최근 날짜를 찾고 입출금과 일손익을 합산
