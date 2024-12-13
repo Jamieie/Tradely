@@ -324,43 +324,43 @@ public class StrategyController {
         }
 
 //        // 2. 일간 분석 데이터를 저장
-//        // 일간 분석 데이터를 하나씩 처리하여 저장
-//        payload.getPayload().forEach(entry -> {
-//            /// 각 데이터 항목을 기반으로 일간 분석 데이터를 처리하는 서비스 메서드 호출
-//            dailyStatisticsService.registerDailyStatistics(
-//                    strategyId,  // 전략 ID를 서비스 메서드에 전달
-//                    DailyStatisticsReqDto.builder()
-//                            .date(entry.getDate())  // 일간 분석 데이터의 날짜
-//                            .dailyProfitLoss(entry.getDailyProfitLoss())  // 일손익
-//                            .depWdPrice(entry.getDepWdPrice())  // 입출금 금액
-//                            .build()
-//            );
-//        });
+        // 일간 분석 데이터를 하나씩 처리하여 저장
+        payload.getPayload().forEach(entry -> {
+            /// 각 데이터 항목을 기반으로 일간 분석 데이터를 처리하는 서비스 메서드 호출
+            dailyStatisticsService.registerDailyStatistics(
+                    strategyId,  // 전략 ID를 서비스 메서드에 전달
+                    DailyStatisticsReqDto.builder()
+                            .date(entry.getDate())  // 일간 분석 데이터의 날짜
+                            .dailyProfitLoss(entry.getDailyProfitLoss())  // 일손익
+                            .depWdPrice(entry.getDepWdPrice())  // 입출금 금액
+                            .build()
+            );
+        });
 
         // 2. 일간 분석 데이터를 처리
         // 가장 최근 날짜를 찾고 입출금과 일손익을 합산
-        LocalDate latestDate = payload.getPayload().stream()
-                .map(DailyStatisticsReqDto::getDate)
-                .max(LocalDate::compareTo)
-                .orElseThrow(() -> new IllegalArgumentException("유효한 날짜가 없습니다."));
-
-        BigDecimal totalDepWdPrice = payload.getPayload().stream()
-                .map(DailyStatisticsReqDto::getDepWdPrice)
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
-
-        BigDecimal totalDailyProfitLoss = payload.getPayload().stream()
-                .map(DailyStatisticsReqDto::getDailyProfitLoss)
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
-
-        // 3. 최종 합산 데이터로 registerDailyStatistics 호출
-        dailyStatisticsService.registerDailyStatistics(
-                strategyId,
-                DailyStatisticsReqDto.builder()
-                        .date(latestDate)
-                        .depWdPrice(totalDepWdPrice)
-                        .dailyProfitLoss(totalDailyProfitLoss)
-                        .build()
-        );
+//        LocalDate latestDate = payload.getPayload().stream()
+//                .map(DailyStatisticsReqDto::getDate)
+//                .max(LocalDate::compareTo)
+//                .orElseThrow(() -> new IllegalArgumentException("유효한 날짜가 없습니다."));
+//
+//        BigDecimal totalDepWdPrice = payload.getPayload().stream()
+//                .map(DailyStatisticsReqDto::getDepWdPrice)
+//                .reduce(BigDecimal.ZERO, BigDecimal::add);
+//
+//        BigDecimal totalDailyProfitLoss = payload.getPayload().stream()
+//                .map(DailyStatisticsReqDto::getDailyProfitLoss)
+//                .reduce(BigDecimal.ZERO, BigDecimal::add);
+//
+//        // 3. 최종 합산 데이터로 registerDailyStatistics 호출
+//        dailyStatisticsService.registerDailyStatistics(
+//                strategyId,
+//                DailyStatisticsReqDto.builder()
+//                        .date(latestDate)
+//                        .depWdPrice(totalDepWdPrice)
+//                        .dailyProfitLoss(totalDailyProfitLoss)
+//                        .build()
+//        );
 
         // 3. 응답 데이터 구성
         Map<String, Object> responseMap = new HashMap<>();

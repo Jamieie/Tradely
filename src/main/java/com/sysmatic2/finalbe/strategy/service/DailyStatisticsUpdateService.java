@@ -17,10 +17,10 @@ public class DailyStatisticsUpdateService {
         LocalDate today = LocalDate.now();
 
         // 공휴일 또는 주말에 실행하지 않음
-        if (HolidayUtil.isHolidayOrWeekend(today.minusDays(1))) {
-            System.out.println("Scheduler skipped: 공휴일 또는 주말이므로 실행하지 않습니다. Date: " + today.minusDays(1));
-            return;
-        }
+//        if (HolidayUtil.isHolidayOrWeekend(today.minusDays(1))) {
+//            System.out.println("Scheduler skipped: 공휴일 또는 주말이므로 실행하지 않습니다. Date: " + today.minusDays(1));
+//            return;
+//        }
 
         System.out.println("Scheduler started: scheduleDailySmScoreUpdate");
         dailyStatisticsService.updateSmScoreInDailyStatistics();
