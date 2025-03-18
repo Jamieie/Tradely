@@ -14,6 +14,7 @@ import org.springframework.stereotype.Repository;
 
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.Optional;
 
 @Repository
 // 기본 JPA 리포지토리 + 커스텀 QueryDSL 리포지토리 기능 확장
@@ -43,7 +44,8 @@ public interface StrategyRepository extends JpaRepository<StrategyEntity, Long>,
     @Query("SELECT s FROM StrategyEntity s " +
             "WHERE s.strategyTitle LIKE %:keyword% " +
             "AND s.isPosted = :isPosted " +
-            "AND s.isApproved = :isApproved")
+            "AND s.isApproved = :isApproved " +
+            "ORDER BY s.smScore DESC")
     Page<StrategyEntity> searchByKeyword(
             @Param("keyword") String keyword,
             @Param("isPosted") String isPosted,
@@ -144,4 +146,20 @@ public interface StrategyRepository extends JpaRepository<StrategyEntity, Long>,
      */
     @Query("SELECT s FROM StrategyEntity s WHERE s.tradingTypeEntity.tradingTypeId = :tradingTypeId")
     List<StrategyEntity> findByTradingType(@Param("tradingTypeId") Integer tradingTypeId);
+
+    /**
+     * 승인된(isApproved) 및 게시된(isPosted) 전략 전체를 조회합니다.
+     *
+     * @param isApproved 승인 여부 (예: "Y" 또는 "N")
+     * @param isPosted   게시 여부 (예: "Y" 또는 "N")
+     * @return 조건을 만족하는 전략의 페이지(Page<StrategyEntity>)
+     */
+    List<StrategyEntity> findByIsApprovedAndIsPosted(String isApproved, String isPosted);
+
+    /**
+     * 특정 회원의 팔로워 수 (followers count) 계산하는 기능 : 승인 & 공개 전략에 대해서만 팔로우수 카운트
+     */
+    @Query("SELECT SUM(s.followersCount) FROM StrategyEntity s WHERE s.writerId = :writerId " +
+            "AND s.isApproved = 'Y' AND s.isPosted = 'Y'")
+    Optional<Long> findTotalFollowersCountByWriterId(@Param("writerId") String writerId);
 }

@@ -651,7 +651,7 @@ public class StrategyService {
         //승인요청 가능 여부
         LocalDateTime createDateTime = strategyEntity.getWritedAt();
         LocalDate createDate = createDateTime.toLocalDate();
-        if(dailyStatisticsRepository.countByDateBetween(createDate, LocalDate.now()) >= 3
+        if(dailyStatisticsRepository.countByStrategyAndDateBetween(id, createDate, LocalDate.now()) >= 3
                 && strategyEntity.getStrategyStatusCode().equals("STRATEGY_OPERATION_UNDER_MANAGEMENT")
                 && strategyEntity.getIsApproved().equals("N")){
             responseDto.setRequestAvailable(true);
@@ -1097,6 +1097,11 @@ public class StrategyService {
             throw new StrategyAlreadyTerminatedException("전략이 이미 운용종료된 상태입니다.");
         }
 
+        //승인상태가 P(대기)이거나 N(미승인)인 경우 예외 반환
+        if(strategyEntity.getIsApproved().equals("P") || strategyEntity.getIsApproved().equals("N")) {
+            throw new StrategyNotApprovedException("승인되지 않은 전략입니다.");
+        }
+
         //트레이더면 작성자 판별
         if(isTrader && !strategyEntity.getWriterId().equals(memberId)) {
             throw new AccessDeniedException("운용종료할 권한이 없습니다.");
@@ -1151,7 +1156,7 @@ public class StrategyService {
         //3개 미만이면 예외를 던진다.
         LocalDateTime createDatetime = strategyEntity.getWritedAt();
         LocalDate createDate = createDatetime.toLocalDate();
-        if(dailyStatisticsRepository.countByDateBetween(createDate, LocalDate.now()) < 3){
+        if(dailyStatisticsRepository.countByStrategyAndDateBetween(strategyId, createDate, LocalDate.now()) < 3){
             throw new DailyDataNotEnoughException("일일 거래 데이터가 3개 이상인 경우에만 승인 요청을 보낼 수 있습니다.");
         }
 
@@ -1327,5 +1332,71 @@ public class StrategyService {
         response.put("timestamp", Instant.now());
 
         return response;
+    }
+
+    // 11. 전략 팔로워 수 기반 상위 유저 리스트
+    @Transactional(readOnly = true)
+    public Map<String, Object> getStrategyFollowerRanking(Integer size) {
+
+        // 조건: isApproved = "Y" AND isPosted = "Y"인 전체 전략
+        List<StrategyEntity> strategyPage = strategyRepo.findByIsApprovedAndIsPosted("Y", "Y");
+
+        // 멤버별 전략 데이터 그룹화
+        Map<String, List<StrategyEntity>> strategiesGroupedByMember = strategyPage.stream()
+                .collect(Collectors.groupingBy(StrategyEntity::getWriterId));
+
+        // DTO 생성 (멤버별 상위 size개 전략 집계)
+        List<FollowingRankingResponseDto> dtoList = strategiesGroupedByMember.entrySet().stream()
+                .map(entry -> {
+                    String writerId = entry.getKey();
+                    List<StrategyEntity> memberStrategies = entry.getValue();
+
+                    // 각 전략에 해당하는 누적수익금액(누적손익) 조회 후 합산
+                    BigDecimal totalCumulativeProfitLoss = memberStrategies.stream()
+                            .map(strategy -> dailyStatisticsRepository.findByStrategyEntityOrderByDateDesc(strategy).stream()
+                                    .findFirst()
+                                    .map(DailyStatisticsEntity::getCumulativeProfitLoss)
+                                    .orElse(BigDecimal.ZERO))
+                            .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+                    // 각 멤버 정보 조회
+                    MemberEntity member = memberRepository.findById(writerId)
+                            .orElseThrow(() -> new IllegalArgumentException("Member not found: " + writerId));
+
+                    // 총 팔로워 수 합산
+                    Integer followerCnt = Math.toIntExact(memberStrategies.stream()
+                            .mapToLong(StrategyEntity::getFollowersCount)
+                            .sum());
+
+                    // DTO 생성
+                    return new FollowingRankingResponseDto(
+                            member.getMemberId(),
+                            member.getNickname(),
+                            member.getProfilePath(),
+                            member.getIntroduction(),
+                            memberStrategies.size(),
+                            followerCnt,
+                            totalCumulativeProfitLoss
+                    );
+                })
+                .sorted(Comparator.comparing(FollowingRankingResponseDto::getFollowerCnt).reversed()) // 전체 팔로워 수 기준 정렬
+                .limit(size) // 상위 pageSize만 포함
+                .collect(Collectors.toList());
+
+        // 결과를 Map으로 변환
+        Map<String, Object> response = new HashMap<>();
+        response.put("data", dtoList);
+        response.put("timestamp", Instant.now());
+
+        return response;
+    }
+
+    // memberID로 특정 회원의 팔로워 수 조회하기
+    @Transactional(readOnly = true)
+    public Long getTotalFollowersCntByWriterId(String writerId) {
+        // TODO) 해당 회원의 등급이 INVESTOR일 경우, 트레이더가 아니라고 예외 발생
+
+        // 트레이더 회원의 팔로워 수 전체 조회
+        return strategyRepo.findTotalFollowersCountByWriterId(writerId).orElse(0L);
     }
 }

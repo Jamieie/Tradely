@@ -27,10 +27,7 @@ import org.springframework.web.server.ResponseStatusException;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.NoSuchElementException;
+import java.util.*;
 
 @RestController
 @RequestMapping("/api/strategies")
@@ -323,19 +320,46 @@ public class StrategyController {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "일간 분석 데이터는 최대 5개까지 등록 가능합니다.");
         }
 
-        // 2. 일간 분석 데이터를 저장
-        // 일간 분석 데이터를 하나씩 처리하여 저장
-        payload.getPayload().forEach(entry -> {
-            /// 각 데이터 항목을 기반으로 일간 분석 데이터를 처리하는 서비스 메서드 호출
-            dailyStatisticsService.registerDailyStatistics(
-                    strategyId,  // 전략 ID를 서비스 메서드에 전달
-                    DailyStatisticsReqDto.builder()
-                            .date(entry.getDate())  // 일간 분석 데이터의 날짜
-                            .dailyProfitLoss(entry.getDailyProfitLoss())  // 일손익
-                            .depWdPrice(entry.getDepWdPrice())  // 입출금 금액
-                            .build()
-            );
-        });
+        // 2. 일간 분석 데이터를 처리
+        // 날짜 오름차순 정렬 후 처리
+        payload.getPayload().stream()
+                .sorted(Comparator.comparing(DailyStatisticsReqDto::getDate)) // 날짜 기준 오름차순 정렬
+                .forEach(entry -> {
+                    // 각 데이터 항목을 기반으로 일간 분석 데이터를 처리하는 서비스 메서드 호출
+                    dailyStatisticsService.registerDailyStatistics(
+                            strategyId,  // 전략 ID를 서비스 메서드에 전달
+                            DailyStatisticsReqDto.builder()
+                                    .date(entry.getDate())  // 일간 분석 데이터의 날짜
+                                    .dailyProfitLoss(entry.getDailyProfitLoss())  // 일손익
+                                    .depWdPrice(entry.getDepWdPrice())  // 입출금 금액
+                                    .build()
+                    );
+                });
+
+        // 2. 일간 분석 데이터를 처리
+        // 가장 최근 날짜를 찾고 입출금과 일손익을 합산
+//        LocalDate latestDate = payload.getPayload().stream()
+//                .map(DailyStatisticsReqDto::getDate)
+//                .max(LocalDate::compareTo)
+//                .orElseThrow(() -> new IllegalArgumentException("유효한 날짜가 없습니다."));
+//
+//        BigDecimal totalDepWdPrice = payload.getPayload().stream()
+//                .map(DailyStatisticsReqDto::getDepWdPrice)
+//                .reduce(BigDecimal.ZERO, BigDecimal::add);
+//
+//        BigDecimal totalDailyProfitLoss = payload.getPayload().stream()
+//                .map(DailyStatisticsReqDto::getDailyProfitLoss)
+//                .reduce(BigDecimal.ZERO, BigDecimal::add);
+//
+//        // 3. 최종 합산 데이터로 registerDailyStatistics 호출
+//        dailyStatisticsService.registerDailyStatistics(
+//                strategyId,
+//                DailyStatisticsReqDto.builder()
+//                        .date(latestDate)
+//                        .depWdPrice(totalDepWdPrice)
+//                        .dailyProfitLoss(totalDailyProfitLoss)
+//                        .build()
+//        );
 
         // 3. 응답 데이터 구성
         Map<String, Object> responseMap = new HashMap<>();
@@ -663,4 +687,16 @@ public class StrategyController {
         Map<String, Object> response = strategyService.getSmScoreTop5Strategies();
         return ResponseEntity.ok(response);
     }
+
+    // 21. 팔로우 랭킹 리스트
+    @Operation(
+            summary = "팔로우 랭킹 조회",
+            description = "팔로우 랭킹 리스트를 반환합니다. 응답에는 멤버 ID, 닉네임, 소개글, 전략 수, 팔로워 수 정보가 포함됩니다."
+    )
+    @GetMapping("/follower-ranking")
+    public ResponseEntity<Map<String, Object>> getStrategyFollowerRanking(int size) {
+        Map<String, Object> response = strategyService.getStrategyFollowerRanking(size);
+        return ResponseEntity.ok(response);
+    }
+
 }
